@@ -1,6 +1,11 @@
-use std::{fmt, path::PathBuf, str::FromStr};
-
+use crate::{
+    cipher_text_key_generate, get_content, get_reader, process_text_decrypt, process_text_encrypt,
+    CmdExector,
+};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use clap::Parser;
+use std::{fmt, path::PathBuf, str::FromStr};
+use tokio::fs;
 
 use super::{verify_file, verify_path};
 
@@ -78,5 +83,50 @@ impl From<TextCipherFormat> for &'static str {
 impl fmt::Display for TextCipherFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", Into::<&str>::into(*self))
+    }
+}
+
+impl CmdExector for EncryptOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = get_reader(&self.input)?;
+        let key = get_content(&self.key)?;
+        let nonce = get_content(&self.nonce)?;
+        let encrypt_text = process_text_encrypt(&mut reader, &key, &nonce, self.format)?;
+        // base64 output
+        let encoded = URL_SAFE_NO_PAD.encode(encrypt_text);
+        println!("{}", encoded);
+        Ok(())
+    }
+}
+
+impl CmdExector for DecryptOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let key = get_content(&self.key)?;
+        let nonce = get_content(&self.nonce)?;
+        let decoded = URL_SAFE_NO_PAD.decode(&self.ciphertext)?;
+        let plaintext = process_text_decrypt(&key, &nonce, &decoded, self.format)?;
+        let plaintext = String::from_utf8(plaintext)?;
+        println!("Decrypted text: {}", plaintext);
+        Ok(())
+    }
+}
+
+impl CmdExector for KeyGenerateOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let key = cipher_text_key_generate(self.format)?;
+        for (k, v) in key {
+            fs::write(self.output_path.join(k), v).await?;
+        }
+        Ok(())
+    }
+}
+
+impl CmdExector for TextCipherSubCommand {
+    async fn execute(self) -> anyhow::Result<()> {
+        match self {
+            TextCipherSubCommand::Encrypt(opts) => opts.execute().await,
+            TextCipherSubCommand::Decrypt(opts) => opts.execute().await,
+            TextCipherSubCommand::Generate(opts) => opts.execute().await,
+        }
     }
 }
