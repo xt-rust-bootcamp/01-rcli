@@ -4,14 +4,16 @@ use crate::{
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use clap::Parser;
+use enum_dispatch::enum_dispatch;
 use std::{fmt, path::PathBuf, str::FromStr};
 use tokio::fs;
 
 use super::{verify_file, verify_path};
 
 #[derive(Debug, Parser)]
+#[enum_dispatch(CmdExector)]
 pub enum TextCipherSubCommand {
-    Generate(KeyGenerateOpts),
+    Generate(CipherKeyGenerateOpts),
     #[command(about = "encrypt a plaintext with a private/session key and return a ciphertext")]
     Encrypt(EncryptOpts),
     #[command(about = "decrypt the ciphertext and return the plaintext")]
@@ -19,7 +21,7 @@ pub enum TextCipherSubCommand {
 }
 
 #[derive(Debug, Parser)]
-pub struct KeyGenerateOpts {
+pub struct CipherKeyGenerateOpts {
     #[arg(long, default_value = "chacha20poly1305", value_parser = parse_text_cipher_format)]
     pub format: TextCipherFormat,
     #[arg(short, long, value_parser = verify_path)]
@@ -111,7 +113,7 @@ impl CmdExector for DecryptOpts {
     }
 }
 
-impl CmdExector for KeyGenerateOpts {
+impl CmdExector for CipherKeyGenerateOpts {
     async fn execute(self) -> anyhow::Result<()> {
         let key = cipher_text_key_generate(self.format)?;
         for (k, v) in key {
@@ -121,12 +123,12 @@ impl CmdExector for KeyGenerateOpts {
     }
 }
 
-impl CmdExector for TextCipherSubCommand {
-    async fn execute(self) -> anyhow::Result<()> {
-        match self {
-            TextCipherSubCommand::Encrypt(opts) => opts.execute().await,
-            TextCipherSubCommand::Decrypt(opts) => opts.execute().await,
-            TextCipherSubCommand::Generate(opts) => opts.execute().await,
-        }
-    }
-}
+// impl CmdExector for TextCipherSubCommand {
+//     async fn execute(self) -> anyhow::Result<()> {
+//         match self {
+//             TextCipherSubCommand::Encrypt(opts) => opts.execute().await,
+//             TextCipherSubCommand::Decrypt(opts) => opts.execute().await,
+//             TextCipherSubCommand::Generate(opts) => opts.execute().await,
+//         }
+//     }
+// }
