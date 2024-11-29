@@ -1,0 +1,6 @@
+### Test static file
+GET http://localhost:8080/fixtures/b64.txt
+
+### Test static file with tower-http
+GET http://localhost:8080/tower/Cargo.toml
+Range: bytes=101-200
