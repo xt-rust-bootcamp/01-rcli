@@ -1,5 +1,5 @@
 ### Test static file
-GET http://localhost:8080/fixtures/b64.txt
+GET http://localhost:8080/fixtures
 
 ### Test static file with tower-http
 GET http://localhost:8080/tower/Cargo.toml
